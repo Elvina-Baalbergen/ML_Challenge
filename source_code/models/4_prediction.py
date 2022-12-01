@@ -4,6 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 import os
 import pickle
+import warnings
 
 #########
 # auth: Elvina
@@ -24,7 +25,7 @@ def prediction(year, venue, title, abstract):
 
     # Get all author names
     set_path()
-    df_train = pd.read_pickle("../../data/processed/clean_df.pkl")
+    df_train = pd.read_pickle("../../data/processed/test_clean_df.pkl")
     authors = df_train['authorName'].unique()
 
     # Loop over all authors
@@ -52,7 +53,7 @@ def prediction(year, venue, title, abstract):
         result_records.append([author,Score_nlp,Score_place,total_predictions])
 
         #Log
-        #print(f"{i} - {Score_nlp},{Score_place}")
+        print(f"{i} - {Score_nlp},{Score_place}", end="\r")
 
     # make dataframe from recors
     df_result = pd.DataFrame(result_records, columns = ["author","nlp_score","place_score","total_score"])
@@ -80,16 +81,28 @@ def calculate_final_score(score_NLP,score_place):
 
 def test_prediciton():
     set_path()
-    df_train = pd.read_pickle("../../data/processed/clean_df.pkl")
+    df_train = pd.read_pickle("../../data/processed/test_clean_df.pkl")
     df_test = df_train[df_train['authorName']=='Chuhan Wu']
     year = df_test["year"].tolist()[0]
     venue = df_test["venues_le"].tolist()[0]
     title = df_test["title"].tolist()[0]
     abstract = df_test["abstract"].tolist()[0]
 
-    import warnings
-    warnings.filterwarnings('ignore')
-
     print(prediction(year,venue,title,abstract))
 
-test_prediciton()
+def predict_all():
+    # Setup predicitons dfs
+    set_path()
+    df_predictions = pd.read_pickle("../../data/processed/test_clean_df.pkl")
+    
+    # Log 
+    print("Running predicitons on test set:")
+
+    # Generate prediciton for each testcases
+    df_predictions["predicted_auth"] = df_predictions.apply(lambda x: prediction(x.year,x.venues_le,x.title,x.abstract), axis=1)
+
+    with open(f"../../data/testing/predictions.pkl", 'wb') as f:
+        pickle.dump(file = f, obj =df_predictions)
+
+warnings.filterwarnings('ignore')
+predict_all()

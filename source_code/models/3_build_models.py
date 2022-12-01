@@ -94,5 +94,5 @@ def test_build_model():
     print(models[0].get_feature_names_out())
 
 set_path()
-df_train = pd.read_pickle("../../data/processed/clean_df.pkl")
+df_train = pd.read_pickle("../../data/processed/train_clean_df.pkl")
 build_all_models(df_train)
