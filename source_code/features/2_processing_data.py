@@ -43,6 +43,43 @@ def process_row(row):
 
     return row
 
+def split_test_train(df_to_split):
+    # get a set of authors which appear minimum 2 times on the training data
+    df_auth_freq = df_to_split.groupby(['authorName']).size().reset_index().sort_values(0,ascending=False)
+    df_auth_freq.rename(columns = {0:'freq'}, inplace=True)
+    df_auth_freq_min2papers = df_auth_freq[ df_auth_freq['freq'] >= 2]
+    authorset = set( df_auth_freq_min2papers['authorName'].to_list())
+
+    # select only part of the df containing these authors
+    mask = []
+    for i in range(len(df_train)):
+        mask.append(df_train['authorName'][i] in authorset)
+    df_subset_auth = df_train[mask]
+
+    # Set up test set
+    df_subset_test = df_subset_auth[0:0]
+
+    # Split the test / train set
+    df_subset_auth = df_subset_auth.reset_index()
+    df_subset_test_len = 0
+
+    for i in range(len(df_subset_auth)):
+        if (df_subset_auth['authorName'][i] in authorset):
+            # for logging
+            print(f"{i} - {df_subset_auth['authorName'][i]}")
+            
+            # Copy over row to test set
+            df_subset_test.loc[df_subset_test_len] = df_subset_auth.loc[i]
+            df_subset_test_len +=1
+
+            # author no longer needed in auth set because already a paper copied
+            authorset.discard(df_subset_auth['authorName'][i])
+
+            #drop row from training set
+            df_subset_auth = df_subset_auth.drop(i)
+
+    return df_subset_auth, df_subset_test
+
 # Set working directory to location of the file
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
@@ -52,12 +89,16 @@ os.chdir(dname)
 df_train = pd.read_pickle("../../data/processed/dirty_df.pkl")
 
 # Call cleaning functions
+print("Encoding venues")
 df_train = encode_venues(df_train)
+print("Cleaning titles")
 df_train['title'] = df_train['title'].apply(process_row)
+print("Cleaning abstracts")
 df_train['abstract'] = df_train['abstract'].apply(process_row)
 
+# Split into training and testing data
+df_train_split, df_test_split = split_test_train(df_train)
+
 # write back to processed folder
-df_train.to_pickle("../../data/processed/clean_df.pkl")
-
-
-
+df_train_split.to_pickle("../../data/processed/train_clean_df.pkl")
+df_test_split.to_pickle("../../data/processed/test_clean_df.pkl")
