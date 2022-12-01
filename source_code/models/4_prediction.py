@@ -5,6 +5,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 import os
 import pickle
 import warnings
+import multiprocessing 
 
 #########
 # auth: Elvina
@@ -53,14 +54,14 @@ def prediction(year, venue, title, abstract):
         result_records.append([author,Score_nlp,Score_place,total_predictions])
 
         #Log
-        print(f"{i} - {Score_nlp},{Score_place}", end="\r")
+        #print(f"{i} - {Score_nlp},{Score_place}", end="\r")
 
     # make dataframe from recors
     df_result = pd.DataFrame(result_records, columns = ["author","nlp_score","place_score","total_score"])
     
     # get highest score
     sorted = df_result.sort_values("total_score",ascending=False)
-    print(sorted.head(10))
+    #print(sorted.head(10), end ="\r")
 
     authorName = sorted.head(1).author.tolist()[0]
     return authorName
@@ -99,10 +100,48 @@ def predict_all():
     print("Running predicitons on test set:")
 
     # Generate prediciton for each testcases
-    df_predictions["predicted_auth"] = df_predictions.apply(lambda x: prediction(x.year,x.venues_le,x.title,x.abstract), axis=1)
+    df_predictions["predicted_auth"] = df_predictions.head(20).apply(lambda x: prediction(x.year,x.venues_le,x.title,x.abstract), axis=1)
 
     with open(f"../../data/testing/predictions.pkl", 'wb') as f:
         pickle.dump(file = f, obj =df_predictions)
 
+def predict_all_parrallel(path_testcases):
+    # Setup predicitons dfs
+    set_path()
+    df_test= pd.read_pickle(path_testcases)
+
+    # Log 
+    print("Running predicitons on test set:")
+
+    # open results file to write to
+    f_result =  open("../../data/testing/results.csv", "a")
+    f_result.write("index,predicted_auth,real_author,correct\n")
+    f_result.flush()
+
+    # Set up Process pool - no arg automatically matches computers corecount
+    ProcPool = multiprocessing.Pool() 
+
+    for result in ProcPool.imap(predict_map,df_test.iterrows()):
+        log = f"{result[0]},{result[1]},{result[2]},{result[1] == result[2]}"
+        f_result.write(log +"\n")
+        f_result.flush()
+        print(log)
+
+    f_result.close()
+    ProcPool.close()
+
+def predict_map(df_iter):
+    index, series =df_iter
+
+    year = series['year']
+    venue = series['venues_le']
+    title = series['title']
+    abstract = series['abstract']
+
+    predicted_author = prediction(year, venue, title, abstract)
+    real_author = series['authorName']
+
+    return [index,predicted_author,real_author]
+
 warnings.filterwarnings('ignore')
-predict_all()
+predict_all_parrallel("../../data/processed/test_clean_df.pkl")
