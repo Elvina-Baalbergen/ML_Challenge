@@ -45,15 +45,15 @@ def process_row(row):
 
 def split_test_train(df_to_split):
     # get a set of authors which appear minimum 2 times on the training data
-    df_auth_freq = df_to_split.groupby(['authorName']).size().reset_index().sort_values(0,ascending=False)
+    df_auth_freq = df_to_split.groupby(['authorId']).size().reset_index().sort_values(0,ascending=False)
     df_auth_freq.rename(columns = {0:'freq'}, inplace=True)
     df_auth_freq_min2papers = df_auth_freq[ df_auth_freq['freq'] >= 2]
-    authorset = set( df_auth_freq_min2papers['authorName'].to_list())
+    authorset = set( df_auth_freq_min2papers['authorId'].to_list())
 
     # select only part of the df containing these authors
     mask = []
     for i in range(len(df_train)):
-        mask.append(df_train['authorName'][i] in authorset)
+        mask.append(df_train['authorId'][i] in authorset)
     df_subset_auth = df_train[mask]
 
     # Set up test set
@@ -64,16 +64,16 @@ def split_test_train(df_to_split):
     df_subset_test_len = 0
 
     for i in range(len(df_subset_auth)):
-        if (df_subset_auth['authorName'][i] in authorset):
+        if (df_subset_auth['authorId'][i] in authorset):
             # for logging
-            print(f"{i} - {df_subset_auth['authorName'][i]}")
+            print(f"{i} - {df_subset_auth['authorId'][i]}")
             
             # Copy over row to test set
             df_subset_test.loc[df_subset_test_len] = df_subset_auth.loc[i]
             df_subset_test_len +=1
 
             # author no longer needed in auth set because already a paper copied
-            authorset.discard(df_subset_auth['authorName'][i])
+            authorset.discard(df_subset_auth['authorId'][i])
 
             #drop row from training set
             df_subset_auth = df_subset_auth.drop(i)

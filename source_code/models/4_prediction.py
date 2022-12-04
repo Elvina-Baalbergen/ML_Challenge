@@ -19,6 +19,29 @@ def set_path():
     dname = os.path.dirname(abspath)
     os.chdir(dname)
 
+def true_auth_score(authorId,year, venue, title, abstract):
+    with open(f"../../models/{authorId}.pkl", 'rb') as f:
+            models = pickle.load(file = f) 
+
+    # prepare test cases 
+    testcase_NLP = title + " " + abstract
+    testcase_place = [year, venue]
+
+    # calculate NLP Score
+    NLP_model = models[0]
+    Score_nlp = score_NLP(NLP_model,testcase_NLP)
+
+    # Calculate place Score
+    place_model = models[1]
+    Score_place = score_place(place_model, testcase_place)
+
+    # Calculate combined Score
+    total_predictions = calculate_final_score(Score_nlp, Score_place)
+
+    return (Score_nlp,Score_place,total_predictions)
+
+
+
 def prediction(year, venue, title, abstract):
     # prepare test cases 
     testcase_NLP = title + " " + abstract
@@ -27,7 +50,7 @@ def prediction(year, venue, title, abstract):
     # Get all author names
     set_path()
     df_train = pd.read_pickle("../../data/processed/test_clean_df.pkl")
-    authors = df_train['authorName'].unique()
+    authors = df_train['authorId'].unique()
 
     # Loop over all authors
     result_records = []
@@ -61,10 +84,11 @@ def prediction(year, venue, title, abstract):
     
     # get highest score
     sorted = df_result.sort_values("total_score",ascending=False)
-    #print(sorted.head(10), end ="\r")
+    print(sorted.head(10))
 
-    authorName = sorted.head(1).author.tolist()[0]
-    return authorName
+
+    authorId = sorted.head(1).author.tolist()[0]
+    return authorId
 
 def score_NLP(model, testcase):
     modelcount = len(model.get_feature_names_out())
@@ -77,7 +101,7 @@ def score_place(model, testcase):
     return score
 
 def calculate_final_score(score_NLP,score_place):
-    final_score = score_NLP * score_place
+    final_score = score_NLP #* score_place
     return final_score
 
 def test_prediciton():
@@ -119,7 +143,7 @@ def predict_all_parrallel(path_testcases):
     f_result.flush()
 
     # Set up Process pool - no arg automatically matches computers corecount
-    ProcPool = multiprocessing.Pool() 
+    ProcPool = multiprocessing.Pool(1) 
 
     for result in ProcPool.imap(predict_map,df_test.iterrows()):
         log = f"{result[0]},{result[1]},{result[2]},{result[1] == result[2]}"
@@ -139,7 +163,9 @@ def predict_map(df_iter):
     abstract = series['abstract']
 
     predicted_author = prediction(year, venue, title, abstract)
-    real_author = series['authorName']
+    real_author = series['authorId']
+
+    print(true_auth_score(real_author,year, venue, title, abstract))
 
     return [index,predicted_author,real_author]
 
