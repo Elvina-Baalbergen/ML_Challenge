@@ -16,3 +16,10 @@ def set_path():
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
+
+def accuracy(results_path):
+    set_path()
+    results = pd.read_csv(results_path)
+    return len(results[results["correct"] == True])/len(results)
+
+print(accuracy("../../data/testing/results.csv"))  
